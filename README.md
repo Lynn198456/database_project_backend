@@ -1,36 +1,55 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Database Project Backend (Next.js + PostgreSQL)
 
-## Getting Started
+This backend exposes API routes used by the frontend app.
 
-First, run the development server:
+## Stack
+
+- Next.js App Router
+- PostgreSQL via `pg`
+
+## Setup
+
+1. Install dependencies:
+
+```bash
+npm install
+```
+
+2. Create `.env.local` from `.env.local.example` and set your Postgres URL:
+
+```bash
+cp .env.local.example .env.local
+```
+
+3. Start the backend:
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Backend runs on [http://localhost:4000](http://localhost:4000).
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+## Environment Variables
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+- `DATABASE_URL`: PostgreSQL connection string
+- `FRONTEND_ORIGIN`: allowed frontend origin for CORS (default: `http://localhost:5173`)
 
-## Learn More
+## API Endpoints
 
-To learn more about Next.js, take a look at the following resources:
+- `GET /api/health` - health check and database connectivity
+- `GET /api/items?page=1&limit=100` - list items
+- `POST /api/items` - create item `{ "name": "...", "value": "..." }`
+- `GET /api/items/:id` - fetch item
+- `PUT /api/items/:id` - update item `{ "name": "...", "value": "..." }`
+- `DELETE /api/items/:id` - delete item
+- `POST /api/auth/register` - create user account `{ "firstName", "lastName", "email", "phone?", "password", "confirmPassword", "role?" }`
+- `POST /api/auth/login` - login user `{ "email", "password", "expectedRole?" }`
+- `GET /api/movies`, `POST /api/movies`, `GET|PUT|DELETE /api/movies/:id`
+- `GET /api/theaters`, `POST /api/theaters`, `GET|PUT|DELETE /api/theaters/:id`
+- `GET /api/showtimes`, `POST /api/showtimes`, `GET|PUT|DELETE /api/showtimes/:id`
+- `GET /api/bookings`, `POST /api/bookings`, `GET|PUT|DELETE /api/bookings/:id`
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Notes
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The `items` table is created automatically on first API request.
+- The API includes CORS headers for the configured frontend origin.
