@@ -23,6 +23,8 @@ let theatersTableInitPromise;
 let screensTableInitPromise;
 let showtimesTableInitPromise;
 let bookingsTablesInitPromise;
+let teamMembersTableInitPromise;
+let staffScheduleTablesInitPromise;
 
 export async function ensureItemsTable() {
   if (!tableInitPromise) {
@@ -212,4 +214,79 @@ export async function ensureBookingsTables() {
   }
 
   await bookingsTablesInitPromise;
+}
+
+export async function ensureTeamMembersTable() {
+  if (!teamMembersTableInitPromise) {
+    teamMembersTableInitPromise = (async () => {
+      await ensureTheatersTable();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS team_members (
+          id BIGSERIAL PRIMARY KEY,
+          first_name TEXT NOT NULL,
+          last_name TEXT NOT NULL,
+          email TEXT NOT NULL UNIQUE,
+          phone TEXT,
+          role TEXT NOT NULL,
+          department TEXT,
+          status TEXT NOT NULL DEFAULT 'ACTIVE',
+          theater_id BIGINT REFERENCES theaters(id) ON DELETE SET NULL,
+          hired_at DATE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          CHECK (role IN ('ADMIN', 'MANAGER', 'STAFF')),
+          CHECK (status IN ('ACTIVE', 'INACTIVE', 'ON_LEAVE'))
+        );
+      `);
+    })();
+  }
+
+  await teamMembersTableInitPromise;
+}
+
+export async function ensureStaffScheduleTables() {
+  if (!staffScheduleTablesInitPromise) {
+    staffScheduleTablesInitPromise = (async () => {
+      await ensureTeamMembersTable();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS staff_schedules (
+          id BIGSERIAL PRIMARY KEY,
+          team_member_id BIGINT NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+          shift_date DATE NOT NULL,
+          start_time TIME NOT NULL,
+          end_time TIME NOT NULL,
+          role_on_shift TEXT,
+          notes TEXT,
+          status TEXT NOT NULL DEFAULT 'SCHEDULED',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          CHECK (end_time > start_time),
+          CHECK (status IN ('SCHEDULED', 'COMPLETED', 'CANCELLED')),
+          UNIQUE (team_member_id, shift_date, start_time)
+        );
+      `);
+
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS staff_time_off_requests (
+          id BIGSERIAL PRIMARY KEY,
+          team_member_id BIGINT NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+          request_type TEXT NOT NULL DEFAULT 'VACATION',
+          start_date DATE NOT NULL,
+          end_date DATE NOT NULL,
+          partial_day BOOLEAN NOT NULL DEFAULT FALSE,
+          partial_start_time TIME,
+          partial_end_time TIME,
+          reason TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'PENDING',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          CHECK (request_type IN ('VACATION', 'SICK', 'PERSONAL', 'OTHER')),
+          CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED', 'CANCELLED')),
+          CHECK (end_date >= start_date)
+        );
+      `);
+    })();
+  }
+
+  await staffScheduleTablesInitPromise;
 }
