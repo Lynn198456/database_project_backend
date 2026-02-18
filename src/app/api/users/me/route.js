@@ -11,15 +11,32 @@ function parseId(value) {
 }
 
 function validateUpdatePayload(body) {
-  const firstName = typeof body?.firstName === "string" ? body.firstName.trim() : "";
-  const lastName = typeof body?.lastName === "string" ? body.lastName.trim() : "";
-  const phone = typeof body?.phone === "string" ? body.phone.trim() : "";
+  const hasProfilePhoto = Object.prototype.hasOwnProperty.call(body || {}, "profilePhoto");
+  const firstName = typeof body?.firstName === "string" ? body.firstName.trim() : null;
+  const lastName = typeof body?.lastName === "string" ? body.lastName.trim() : null;
+  const phone = typeof body?.phone === "string" ? body.phone.trim() : null;
+  const profilePhoto = hasProfilePhoto ? String(body?.profilePhoto || "").trim() : null;
 
-  if (!firstName || !lastName) {
-    return { error: "firstName and lastName are required." };
+  if (
+    firstName === null &&
+    lastName === null &&
+    phone === null &&
+    !hasProfilePhoto
+  ) {
+    return { error: "No updatable fields provided." };
   }
 
-  return { firstName, lastName, phone: phone || null };
+  if ((firstName !== null && !firstName) || (lastName !== null && !lastName)) {
+    return { error: "firstName and lastName cannot be empty." };
+  }
+
+  return {
+    firstName,
+    lastName,
+    phone: phone === null ? null : phone || null,
+    profilePhotoProvided: hasProfilePhoto,
+    profilePhoto
+  };
 }
 
 function toUserPayload(row) {
@@ -29,6 +46,7 @@ function toUserPayload(row) {
     lastName: row.last_name,
     email: row.email,
     phone: row.phone,
+    profilePhoto: row.profile_photo || "",
     role: row.role,
     createdAt: row.created_at,
     updatedAt: row.updated_at
@@ -40,6 +58,7 @@ async function getUserByIdentity({ id, email }) {
     const result = await query(
       `
         SELECT id, first_name, last_name, email, phone, role, created_at, updated_at
+        , profile_photo
         FROM users
         WHERE id = $1
         LIMIT 1
@@ -53,6 +72,7 @@ async function getUserByIdentity({ id, email }) {
     const result = await query(
       `
         SELECT id, first_name, last_name, email, phone, role, created_at, updated_at
+        , profile_photo
         FROM users
         WHERE LOWER(email) = LOWER($1)
         LIMIT 1
@@ -113,20 +133,30 @@ export async function PUT(request) {
       ? await query(
           `
             UPDATE users
-            SET first_name = $1, last_name = $2, phone = $3, updated_at = NOW()
-            WHERE id = $4
-            RETURNING id, first_name, last_name, email, phone, role, created_at, updated_at
+            SET
+              first_name = COALESCE($1, first_name),
+              last_name = COALESCE($2, last_name),
+              phone = COALESCE($3, phone),
+              profile_photo = CASE WHEN $4 THEN $5 ELSE profile_photo END,
+              updated_at = NOW()
+            WHERE id = $6
+            RETURNING id, first_name, last_name, email, phone, profile_photo, role, created_at, updated_at
           `,
-          [parsed.firstName, parsed.lastName, parsed.phone, id]
+          [parsed.firstName, parsed.lastName, parsed.phone, parsed.profilePhotoProvided, parsed.profilePhoto, id]
         )
       : await query(
           `
             UPDATE users
-            SET first_name = $1, last_name = $2, phone = $3, updated_at = NOW()
-            WHERE LOWER(email) = LOWER($4)
-            RETURNING id, first_name, last_name, email, phone, role, created_at, updated_at
+            SET
+              first_name = COALESCE($1, first_name),
+              last_name = COALESCE($2, last_name),
+              phone = COALESCE($3, phone),
+              profile_photo = CASE WHEN $4 THEN $5 ELSE profile_photo END,
+              updated_at = NOW()
+            WHERE LOWER(email) = LOWER($6)
+            RETURNING id, first_name, last_name, email, phone, profile_photo, role, created_at, updated_at
           `,
-          [parsed.firstName, parsed.lastName, parsed.phone, email]
+          [parsed.firstName, parsed.lastName, parsed.phone, parsed.profilePhotoProvided, parsed.profilePhoto, email]
         );
 
     if (updateResult.rowCount === 0) {

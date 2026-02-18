@@ -6,12 +6,16 @@ CREATE TABLE IF NOT EXISTS users (
   last_name TEXT NOT NULL,
   email TEXT NOT NULL UNIQUE,
   phone TEXT,
+  profile_photo TEXT,
   password_hash TEXT NOT NULL,
   role TEXT NOT NULL DEFAULT 'CUSTOMER',
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   CHECK (role IN ('CUSTOMER', 'STAFF', 'ADMIN'))
 );
+
+ALTER TABLE users
+ADD COLUMN IF NOT EXISTS profile_photo TEXT;
 
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);

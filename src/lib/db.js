@@ -23,6 +23,7 @@ let theatersTableInitPromise;
 let screensTableInitPromise;
 let showtimesTableInitPromise;
 let bookingsTablesInitPromise;
+let watchlistTableInitPromise;
 let teamMembersTableInitPromise;
 let staffScheduleTablesInitPromise;
 let staffTasksTableInitPromise;
@@ -65,19 +66,27 @@ export async function withTransaction(handler) {
 
 export async function ensureUsersTable() {
   if (!usersTableInitPromise) {
-    usersTableInitPromise = pool.query(`
-      CREATE TABLE IF NOT EXISTS users (
-        id BIGSERIAL PRIMARY KEY,
-        first_name TEXT NOT NULL,
-        last_name TEXT NOT NULL,
-        email TEXT NOT NULL UNIQUE,
-        phone TEXT,
-        password_hash TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'CUSTOMER',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-    `);
+    usersTableInitPromise = (async () => {
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS users (
+          id BIGSERIAL PRIMARY KEY,
+          first_name TEXT NOT NULL,
+          last_name TEXT NOT NULL,
+          email TEXT NOT NULL UNIQUE,
+          phone TEXT,
+          profile_photo TEXT,
+          password_hash TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'CUSTOMER',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `);
+
+      await pool.query(`
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS profile_photo TEXT;
+      `);
+    })();
   }
 
   await usersTableInitPromise;
@@ -216,6 +225,35 @@ export async function ensureBookingsTables() {
   }
 
   await bookingsTablesInitPromise;
+}
+
+export async function ensureWatchlistTable() {
+  if (!watchlistTableInitPromise) {
+    watchlistTableInitPromise = (async () => {
+      await ensureUsersTable();
+      await ensureMoviesTable();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS watchlist (
+          id BIGSERIAL PRIMARY KEY,
+          user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          movie_id BIGINT NOT NULL REFERENCES movies(id) ON DELETE CASCADE,
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          UNIQUE (user_id, movie_id)
+        );
+      `);
+
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_watchlist_user_id
+          ON watchlist(user_id);
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_watchlist_movie_id
+          ON watchlist(movie_id);
+      `);
+    })();
+  }
+
+  await watchlistTableInitPromise;
 }
 
 export async function ensureTeamMembersTable() {
