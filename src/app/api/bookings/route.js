@@ -20,13 +20,25 @@ function validatePayload(body) {
   const status = typeof body?.status === "string" ? body.status.trim().toUpperCase() : "CONFIRMED";
   const totalAmount = Number.parseFloat(body?.totalAmount);
   const seats = Array.isArray(body?.seats) ? body.seats : [];
+  const paymentMethod =
+    typeof body?.paymentMethod === "string" ? body.paymentMethod.trim().toUpperCase() : null;
+  const paymentStatus =
+    typeof body?.paymentStatus === "string" ? body.paymentStatus.trim().toUpperCase() : "PAID";
+  const transactionRef =
+    typeof body?.transactionRef === "string" ? body.transactionRef.trim() : null;
 
   if (Number.isNaN(userId) || userId < 1) return { error: "userId is required." };
   if (Number.isNaN(showtimeId) || showtimeId < 1) return { error: "showtimeId is required." };
   if (Number.isNaN(totalAmount) || totalAmount < 0) return { error: "totalAmount must be 0 or greater." };
   if (!["PENDING", "CONFIRMED", "CANCELLED", "REFUNDED"].includes(status)) return { error: "Invalid status." };
+  if (paymentMethod && !["CARD", "CASH", "WALLET", "ONLINE_BANKING"].includes(paymentMethod)) {
+    return { error: "Invalid paymentMethod." };
+  }
+  if (paymentMethod && !["PENDING", "PAID", "FAILED", "REFUNDED"].includes(paymentStatus)) {
+    return { error: "Invalid paymentStatus." };
+  }
 
-  return { userId, showtimeId, status, totalAmount, seats };
+  return { userId, showtimeId, status, totalAmount, seats, paymentMethod, paymentStatus, transactionRef };
 }
 
 export async function OPTIONS() {
@@ -109,6 +121,16 @@ export async function POST(request) {
             VALUES ($1, $2, $3)
           `,
           [createdBookingId, seat.seatLabel, seat.seatPrice]
+        );
+      }
+
+      if (parsed.paymentMethod) {
+        await client.query(
+          `
+            INSERT INTO payments (booking_id, method, amount, status, paid_at, transaction_ref)
+            VALUES ($1, $2, $3, $4, CASE WHEN $4 = 'PAID' THEN NOW() ELSE NULL END, $5)
+          `,
+          [createdBookingId, parsed.paymentMethod, parsed.totalAmount, parsed.paymentStatus, parsed.transactionRef || null]
         );
       }
 
