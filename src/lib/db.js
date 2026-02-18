@@ -25,6 +25,8 @@ let showtimesTableInitPromise;
 let bookingsTablesInitPromise;
 let teamMembersTableInitPromise;
 let staffScheduleTablesInitPromise;
+let staffTasksTableInitPromise;
+let staffTimeRecordsTableInitPromise;
 
 export async function ensureItemsTable() {
   if (!tableInitPromise) {
@@ -289,4 +291,76 @@ export async function ensureStaffScheduleTables() {
   }
 
   await staffScheduleTablesInitPromise;
+}
+
+export async function ensureStaffTasksTable() {
+  if (!staffTasksTableInitPromise) {
+    staffTasksTableInitPromise = (async () => {
+      await ensureTeamMembersTable();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS staff_tasks (
+          id BIGSERIAL PRIMARY KEY,
+          team_member_id BIGINT NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+          title TEXT NOT NULL,
+          description TEXT,
+          priority TEXT NOT NULL DEFAULT 'MEDIUM',
+          due_date DATE,
+          due_time TIME,
+          status TEXT NOT NULL DEFAULT 'PENDING',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          completed_at TIMESTAMPTZ,
+          CHECK (priority IN ('LOW', 'MEDIUM', 'HIGH')),
+          CHECK (status IN ('PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'))
+        );
+      `);
+
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_staff_tasks_member_status
+          ON staff_tasks(team_member_id, status);
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_staff_tasks_due_date
+          ON staff_tasks(due_date);
+      `);
+    })();
+  }
+
+  await staffTasksTableInitPromise;
+}
+
+export async function ensureStaffTimeRecordsTable() {
+  if (!staffTimeRecordsTableInitPromise) {
+    staffTimeRecordsTableInitPromise = (async () => {
+      await ensureTeamMembersTable();
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS staff_time_records (
+          id BIGSERIAL PRIMARY KEY,
+          team_member_id BIGINT NOT NULL REFERENCES team_members(id) ON DELETE CASCADE,
+          work_date DATE NOT NULL,
+          clock_in_at TIMESTAMPTZ NOT NULL,
+          clock_out_at TIMESTAMPTZ,
+          break_minutes INT NOT NULL DEFAULT 0,
+          notes TEXT,
+          status TEXT NOT NULL DEFAULT 'CLOCKED_IN',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+          CHECK (break_minutes >= 0),
+          CHECK (status IN ('CLOCKED_IN', 'COMPLETED', 'MISSED', 'ABSENT')),
+          UNIQUE (team_member_id, work_date)
+        );
+      `);
+
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_staff_time_records_member_date
+          ON staff_time_records(team_member_id, work_date);
+      `);
+      await pool.query(`
+        CREATE INDEX IF NOT EXISTS idx_staff_time_records_date
+          ON staff_time_records(work_date);
+      `);
+    })();
+  }
+
+  await staffTimeRecordsTableInitPromise;
 }
