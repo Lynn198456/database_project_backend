@@ -36,7 +36,7 @@ export async function GET(_request, { params }) {
     const result = await query(
       `
         SELECT s.id, s.movie_id, s.screen_id, s.start_time, s.end_time, s.price, s.language, s.format, s.created_at, s.updated_at,
-               m.title AS movie_title, sc.name AS screen_name, t.name AS theater_name
+               m.title AS movie_title, sc.name AS screen_name, sc.total_seats AS screen_total_seats, t.name AS theater_name
         FROM showtimes s
         JOIN movies m ON m.id = s.movie_id
         JOIN screens sc ON sc.id = s.screen_id
