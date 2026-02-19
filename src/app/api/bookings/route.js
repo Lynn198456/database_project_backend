@@ -102,7 +102,7 @@ export async function POST(request) {
       normalizedSeats.push({ seatLabel, seatPrice });
     }
 
-    const bookingId = await withTransaction(async (client) => {
+    const result = await withTransaction(async (client) => {
       const bookingResult = await client.query(
         `
           INSERT INTO bookings (user_id, showtime_id, status, total_amount)
@@ -113,6 +113,7 @@ export async function POST(request) {
       );
 
       const createdBookingId = bookingResult.rows[0].id;
+      let createdPaymentId = null;
 
       for (const seat of normalizedSeats) {
         await client.query(
@@ -125,19 +126,24 @@ export async function POST(request) {
       }
 
       if (parsed.paymentMethod) {
-        await client.query(
+        const paymentResult = await client.query(
           `
             INSERT INTO payments (booking_id, method, amount, status, paid_at, transaction_ref)
             VALUES ($1, $2, $3, $4, CASE WHEN $4 = 'PAID' THEN NOW() ELSE NULL END, $5)
+            RETURNING id
           `,
           [createdBookingId, parsed.paymentMethod, parsed.totalAmount, parsed.paymentStatus, parsed.transactionRef || null]
         );
+        createdPaymentId = paymentResult.rows[0].id;
       }
 
-      return createdBookingId;
+      return {
+        bookingId: createdBookingId,
+        paymentId: createdPaymentId
+      };
     });
 
-    return jsonResponse({ id: bookingId }, { status: 201 });
+    return jsonResponse({ id: result.bookingId, paymentId: result.paymentId }, { status: 201 });
   } catch (error) {
     return jsonResponse({ error: error.message }, { status: 500 });
   }

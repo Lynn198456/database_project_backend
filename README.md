@@ -48,6 +48,7 @@ Backend runs on [http://localhost:4000](http://localhost:4000).
 - `GET /api/theaters`, `POST /api/theaters`, `GET|PUT|DELETE /api/theaters/:id`
 - `GET /api/showtimes`, `POST /api/showtimes`, `GET|PUT|DELETE /api/showtimes/:id`
 - `GET /api/bookings`, `POST /api/bookings`, `GET|PUT|DELETE /api/bookings/:id`
+- `GET /api/payments/summary?range=today|week|month|all` - revenue summary from paid payments
 
 ## Notes
 

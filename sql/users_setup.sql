@@ -47,6 +47,14 @@ VALUES
     '000-000-0003',
     'cinema_seed_salt:f4e13f565c473529e4d841e977174a4033f234c36b1065361a2bbeca3f1816d8474edd44c1d74878f3fc95e6c32943180ccc567df4d18497e1a7e2e7f39675b0',
     'CUSTOMER'
+  ),
+  (
+    'Winwin',
+    'User',
+    'winwin@gmail.com',
+    '000-000-0013',
+    'c1nema2026:ca777b2344c48cd1472863f687d25146a0351948f49ec15b9374a208675ebf6bc5bed235f6e7d66317933a86ca34d9fcb13074dfe77884b69201bcde3671f53d',
+    'CUSTOMER'
   )
 ON CONFLICT (email) DO UPDATE
 SET

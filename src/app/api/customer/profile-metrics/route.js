@@ -57,26 +57,18 @@ export async function GET(request) {
             JOIN bookings b2 ON b2.id = p.booking_id
             WHERE b2.user_id = $1
               AND p.status = 'PAID'
-          ), 0)::float8 AS paid_total,
-          COALESCE((
-            SELECT ROUND(SUM(b3.total_amount)::numeric, 2)
-            FROM bookings b3
-            WHERE b3.user_id = $1
-              AND b3.status = 'CONFIRMED'
-          ), 0)::float8 AS confirmed_total
+          ), 0)::float8 AS paid_total
       `,
       [user.id]
     );
 
     const row = metricsResult.rows[0] || {};
-    const paidTotal = Number(row.paid_total || 0);
-    const confirmedTotal = Number(row.confirmed_total || 0);
 
     return jsonResponse({
       metrics: {
         watchlistTotal: Number(row.watchlist_total || 0),
         bookingTotal: Number(row.booking_total || 0),
-        totalSpent: paidTotal > 0 ? paidTotal : confirmedTotal
+        totalSpent: Number(row.paid_total || 0)
       },
       user: {
         id: user.id,
