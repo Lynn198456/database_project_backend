@@ -1,7 +1,7 @@
 const defaultOrigin = "http://localhost:5173";
 
 export function buildCorsHeaders() {
-  const origin = process.env.FRONTEND_ORIGIN || defaultOrigin;
+  const origin = process.env.FRONTEND_ORIGIN || "*";
 
   return {
     "Access-Control-Allow-Origin": origin,
